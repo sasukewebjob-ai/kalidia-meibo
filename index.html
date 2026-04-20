@@ -179,6 +179,40 @@
         .date-btn.sun small { color: #dc2626; }
         .date-btn:active { background: rgba(0,0,0,0.06); }
 
+        tfoot td {
+            position: sticky;
+            bottom: 0;
+            background: #0f172a;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            z-index: 8;
+            border-top: 2px solid #1e293b;
+        }
+        tfoot td.sticky-left {
+            background: #0f172a;
+            color: #fff;
+            z-index: 16;
+            text-align: center;
+            font-weight: 700;
+            font-size: 12px;
+        }
+        tfoot td.count-cell {
+            padding: 0 4px;
+        }
+        tfoot td.count-cell .count-num {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        tfoot td.count-cell .count-total {
+            font-size: 10px;
+            font-weight: 400;
+            color: #94a3b8;
+            display: block;
+            line-height: 1.1;
+        }
+        tfoot td.count-cell.zero .count-num { color: #64748b; }
+
         .empty-hint {
             padding: 40px 20px;
             text-align: center;
@@ -264,6 +298,7 @@
         <table id="roster">
             <thead></thead>
             <tbody></tbody>
+            <tfoot></tfoot>
         </table>
         <div class="empty-hint" id="empty-hint" style="display:none">
             右上の「＋日付」で日付列を追加してください。<br>
@@ -411,6 +446,34 @@
                 </tr>`;
             }).join('');
             tbody.innerHTML = rowsHtml;
+
+            // フッター（合計）
+            const tfoot = document.querySelector('#roster tfoot');
+            if (state.dates.length === 0) {
+                tfoot.innerHTML = '';
+            } else {
+                const counts = {};
+                state.dates.forEach(d => counts[d.id] = 0);
+                Object.keys(state.attendance).forEach(k => {
+                    if (!state.attendance[k]) return;
+                    const did = k.split('|')[1];
+                    if (counts[did] !== undefined) counts[did]++;
+                });
+                const totalMembers = state.members.length;
+                let footHtml = `<tr>
+                    <td class="sticky-left col-no"></td>
+                    <td class="sticky-left col-gno"></td>
+                    <td class="sticky-left col-name" style="text-align:center; padding:0">合計</td>`;
+                state.dates.forEach(d => {
+                    const n = counts[d.id];
+                    const zeroCls = n === 0 ? 'zero' : '';
+                    footHtml += `<td class="col-date count-cell ${zeroCls}">
+                        <span class="count-num">${n}</span><small class="count-total">/ ${totalMembers}</small>
+                    </td>`;
+                });
+                footHtml += '</tr>';
+                tfoot.innerHTML = footHtml;
+            }
 
             empty.style.display = state.dates.length === 0 ? 'block' : 'none';
         }
