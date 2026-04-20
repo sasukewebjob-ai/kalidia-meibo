@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#2563eb">
+    <title>KALIDIA名簿</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --male: #dbeafe;
+            --male-strong: #bfdbfe;
+            --female: #fce7f3;
+            --female-strong: #fbcfe8;
+            --border: #cbd5e1;
+            --primary: #2563eb;
+            --danger: #dc2626;
+            --mark: #e11d48;
+            --bg: #f8fafc;
+            --head: #f1f5f9;
+            --text: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overscroll-behavior: none;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: #fff;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+
+        .topbar h1 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            touch-action: manipulation;
+            color: var(--text);
+        }
+
+        .btn:active { background: #f1f5f9; }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+        .btn-primary:active { background: #1d4ed8; }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            border-color: var(--danger);
+        }
+
+        .btn-icon {
+            width: 40px;
+            height: 36px;
+            padding: 0;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            max-height: calc(100vh - 57px);
+            max-height: calc(100dvh - 57px);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table#roster {
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+            background: #fff;
+        }
+
+        th, td {
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 0;
+            height: 44px;
+            min-width: 48px;
+            text-align: center;
+            background: #fff;
+            vertical-align: middle;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--head);
+            z-index: 10;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .sticky-left {
+            position: sticky;
+            background: #fff;
+            z-index: 5;
+        }
+
+        thead .sticky-left { z-index: 15; background: var(--head); }
+
+        .col-no      { left: 0;    width: 30px;  min-width: 30px; font-size: 11px; color: #64748b; }
+        .col-gno     { left: 30px; width: 30px;  min-width: 30px; font-size: 12px; font-weight: 600; }
+        .col-name    { left: 60px; width: 88px;  min-width: 88px; text-align: left; padding: 0 8px; font-weight: 600; border-right: 2px solid var(--border); }
+        .col-date    { min-width: 56px; width: 56px; padding: 0; }
+
+        tr.male td               { background: var(--male); }
+        tr.male td.col-gno       { background: var(--male-strong); }
+        tr.female td             { background: var(--female); }
+        tr.female td.col-gno     { background: var(--female-strong); }
+
+        .cell {
+            cursor: pointer;
+            user-select: none;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--mark);
+            transition: background 0.08s ease;
+        }
+        .cell:active { background: rgba(0,0,0,0.08); }
+
+        .date-btn {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: transparent;
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 1.2;
+            cursor: pointer;
+            padding: 4px 2px;
+            color: inherit;
+            font-weight: 600;
+        }
+        .date-btn small {
+            display: block;
+            font-size: 10px;
+            font-weight: 400;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .date-btn.sat small { color: #2563eb; }
+        .date-btn.sun small { color: #dc2626; }
+        .date-btn:active { background: rgba(0,0,0,0.06); }
+
+        .empty-hint {
+            padding: 40px 20px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-backdrop.show { display: flex; }
+
+        .modal {
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px;
+            min-width: 260px;
+            max-width: 360px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .modal h2 {
+            font-size: 16px;
+            margin: 0 0 14px;
+            font-weight: 700;
+        }
+
+        .modal label {
+            display: block;
+            font-size: 13px;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+
+        .modal input[type=date],
+        .modal input[type=file] {
+            font-size: 16px;
+            padding: 10px;
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 18px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .menu-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .menu-list .btn {
+            text-align: left;
+            padding: 12px 14px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1>KALIDIA名簿</h1>
+        <button class="btn btn-primary" id="btn-add-date">＋日付</button>
+        <button class="btn btn-icon" id="btn-menu" aria-label="メニュー">⋮</button>
+    </div>
+
+    <div class="table-wrap" id="table-wrap">
+        <table id="roster">
+            <thead></thead>
+            <tbody></tbody>
+        </table>
+        <div class="empty-hint" id="empty-hint" style="display:none">
+            右上の「＋日付」で日付列を追加してください。<br>
+            セルをタップで ○ が付きます。
+        </div>
+    </div>
+
+    <!-- 日付編集モーダル -->
+    <div class="modal-backdrop" id="date-modal">
+        <div class="modal">
+            <h2 id="date-modal-title">日付の編集</h2>
+            <label for="date-input">日付</label>
+            <input type="date" id="date-input">
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="date-delete">削除</button>
+                <button class="btn" id="date-cancel">キャンセル</button>
+                <button class="btn btn-primary" id="date-save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- メニューモーダル -->
+    <div class="modal-backdrop" id="menu-modal">
+        <div class="modal">
+            <h2>メニュー</h2>
+            <div class="menu-list">
+                <button class="btn" id="menu-export">📥 JSONエクスポート</button>
+                <button class="btn" id="menu-import">📤 JSONインポート</button>
+                <button class="btn" id="menu-reset">🗑 出席データをリセット</button>
+            </div>
+            <input type="file" id="import-file" accept="application/json,.json" style="display:none">
+            <div class="modal-actions">
+                <button class="btn" id="menu-close">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- メンバーデータ（update_members.py で同期） ---
+        const RAW = {
+            male: ['大野', '唐澤', '北原', '越野', '小林', '善志',
+                '高橋', '張', '原', '平澤', 'バレ', '根津',
+                '細井', '松武', '宮澤輝', '渡辺'],
+            female: ['濱島', '内田', '春日', '黒河内', '後藤', '下平',
+                '田中', '宮澤真', '宮下', '依田']
+        };
+
+        const STORAGE_KEY = 'kalidia_roster_v1';
+        const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+
+        let state = {
+            version: 1,
+            members: [],
+            dates: [],
+            attendance: {}
+        };
+
+        // --- Helpers ---
+        function buildMembers() {
+            const list = [];
+            RAW.male.forEach((n, i) => list.push({ id: `M_${n}`, name: n, gender: 'M', groupNo: i + 1 }));
+            RAW.female.forEach((n, i) => list.push({ id: `F_${n}`, name: n, gender: 'F', groupNo: i + 1 }));
+            return list;
+        }
+
+        function todayIso() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function parseIso(iso) {
+            const [y, m, d] = iso.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function formatDateCell(iso) {
+            const d = parseIso(iso);
+            const dow = DOW[d.getDay()];
+            const cls = d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : '';
+            return `<span>${d.getMonth() + 1}/${d.getDate()}</span><small class="${cls ? 'dow-' + cls : ''}">(${dow})</small>`;
+        }
+
+        function save() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        function load() {
+            state.members = buildMembers();
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const saved = JSON.parse(raw);
+                    state.dates = Array.isArray(saved.dates) ? saved.dates : [];
+                    state.attendance = (saved.attendance && typeof saved.attendance === 'object') ? saved.attendance : {};
+                }
+            } catch (e) {
+                console.warn('load failed', e);
+            }
+        }
+
+        // --- 描画 ---
+        function render() {
+            const thead = document.querySelector('#roster thead');
+            const tbody = document.querySelector('#roster tbody');
+            const empty = document.getElementById('empty-hint');
+
+            // ヘッダー
+            let headHtml = `<tr>
+                <th class="sticky-left col-no">No.</th>
+                <th class="sticky-left col-gno">#</th>
+                <th class="sticky-left col-name">氏名</th>`;
+            state.dates.forEach(d => {
+                const day = parseIso(d.label).getDay();
+                const dowCls = day === 0 ? 'sun' : day === 6 ? 'sat' : '';
+                headHtml += `<th class="col-date">
+                    <button class="date-btn ${dowCls}" data-did="${d.id}">
+                        ${formatDateCell(d.label)}
+                    </button>
+                </th>`;
+            });
+            headHtml += '</tr>';
+            thead.innerHTML = headHtml;
+
+            // ボディ
+            let total = 0;
+            const rowsHtml = state.members.map(m => {
+                total++;
+                const cls = m.gender === 'M' ? 'male' : 'female';
+                let cells = '';
+                state.dates.forEach(d => {
+                    const on = !!state.attendance[`${m.id}|${d.id}`];
+                    cells += `<td class="cell col-date" data-mid="${m.id}" data-did="${d.id}">${on ? '○' : ''}</td>`;
+                });
+                return `<tr class="${cls}">
+                    <td class="sticky-left col-no">${total}</td>
+                    <td class="sticky-left col-gno">${m.groupNo}</td>
+                    <td class="sticky-left col-name">${escapeHtml(m.name)}</td>
+                    ${cells}
+                </tr>`;
+            }).join('');
+            tbody.innerHTML = rowsHtml;
+
+            empty.style.display = state.dates.length === 0 ? 'block' : 'none';
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // --- 操作 ---
+        function toggleCell(mid, did) {
+            const key = `${mid}|${did}`;
+            if (state.attendance[key]) delete state.attendance[key];
+            else state.attendance[key] = true;
+            save();
+            render();
+        }
+
+        function addDate() {
+            state.dates.push({ id: 'd_' + Date.now(), label: todayIso() });
+            save();
+            render();
+            // 右端にスクロール
+            const wrap = document.getElementById('table-wrap');
+            setTimeout(() => { wrap.scrollLeft = wrap.scrollWidth; }, 50);
+        }
+
+        // 日付モーダル
+        let editingDid = null;
+        function openDateModal(did) {
+            const d = state.dates.find(x => x.id === did);
+            if (!d) return;
+            editingDid = did;
+            document.getElementById('date-input').value = d.label;
+            document.getElementById('date-modal').classList.add('show');
+        }
+        function closeDateModal() {
+            editingDid = null;
+            document.getElementById('date-modal').classList.remove('show');
+        }
+        function saveDate() {
+            const val = document.getElementById('date-input').value;
+            if (!val) { closeDateModal(); return; }
+            const d = state.dates.find(x => x.id === editingDid);
+            if (d) { d.label = val; save(); render(); }
+            closeDateModal();
+        }
+        function deleteDate() {
+            if (!editingDid) return;
+            if (!confirm('この日付列を削除しますか？\n（その日の出席データも消えます）')) return;
+            state.dates = state.dates.filter(x => x.id !== editingDid);
+            Object.keys(state.attendance).forEach(k => {
+                if (k.endsWith('|' + editingDid)) delete state.attendance[k];
+            });
+            save();
+            render();
+            closeDateModal();
+        }
+
+        // メニュー
+        function openMenu() { document.getElementById('menu-modal').classList.add('show'); }
+        function closeMenu() { document.getElementById('menu-modal').classList.remove('show'); }
+
+        function exportJson() {
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kalidia-roster-${todayIso()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            closeMenu();
+        }
+
+        function triggerImport() {
+            document.getElementById('import-file').click();
+        }
+
+        function importJson(file) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const obj = JSON.parse(e.target.result);
+                    if (!obj || obj.version !== 1) throw new Error('フォーマットが違います');
+                    state.dates = Array.isArray(obj.dates) ? obj.dates : [];
+                    state.attendance = (obj.attendance && typeof obj.attendance === 'object') ? obj.attendance : {};
+                    save();
+                    render();
+                    closeMenu();
+                    alert('インポートしました');
+                } catch (err) {
+                    alert('読み込み失敗: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetAttendance() {
+            if (!confirm('出席データと日付列をすべて削除します。よろしいですか？\n（メンバーはそのまま残ります）')) return;
+            state.dates = [];
+            state.attendance = {};
+            save();
+            render();
+            closeMenu();
+        }
+
+        // --- イベント配線 ---
+        document.getElementById('btn-add-date').addEventListener('click', addDate);
+        document.getElementById('btn-menu').addEventListener('click', openMenu);
+        document.getElementById('menu-close').addEventListener('click', closeMenu);
+        document.getElementById('menu-export').addEventListener('click', exportJson);
+        document.getElementById('menu-import').addEventListener('click', triggerImport);
+        document.getElementById('menu-reset').addEventListener('click', resetAttendance);
+        document.getElementById('import-file').addEventListener('change', e => {
+            if (e.target.files[0]) importJson(e.target.files[0]);
+            e.target.value = '';
+        });
+
+        document.getElementById('date-cancel').addEventListener('click', closeDateModal);
+        document.getElementById('date-save').addEventListener('click', saveDate);
+        document.getElementById('date-delete').addEventListener('click', deleteDate);
+
+        // モーダル背景タップで閉じる
+        document.querySelectorAll('.modal-backdrop').forEach(bd => {
+            bd.addEventListener('click', e => {
+                if (e.target === bd) bd.classList.remove('show');
+            });
+        });
+
+        // セル＆日付ヘッダーへのイベント委任
+        document.querySelector('#roster').addEventListener('click', e => {
+            const cell = e.target.closest('.cell');
+            if (cell) {
+                toggleCell(cell.dataset.mid, cell.dataset.did);
+                return;
+            }
+            const dateBtn = e.target.closest('.date-btn');
+            if (dateBtn) {
+                openDateModal(dateBtn.dataset.did);
+            }
+        });
+
+        // 起動
+        load();
+        render();
+    </script>
+</body>
+</html>
