@@ -8,6 +8,10 @@
 
 姉妹アプリ「KALIDIAコート割」と同じ構成・同じメンバーリストを共有する。
 
+**公開先:**
+- GitHub: https://github.com/sasukewebjob-ai/kalidia-meibo （public）
+- GitHub Pages: https://sasukewebjob-ai.github.io/kalidia-meibo/
+
 ---
 
 ## ファイル構成
@@ -52,14 +56,16 @@ KALIDIA名簿/
 
 | 機能 | 説明 |
 |---|---|
-| 日付列の追加 | 「＋日付」ボタンで末尾に今日の日付で列を追加 |
+| 日付列の追加 | 「＋日付」ボタンで今日の日付で列を追加、自動ソート後にその列へスクロール |
+| 日付の自動ソート | 追加・編集・インポート・起動時に古い順→新しい順（左→右）で並び替え |
 | 日付編集 | 日付ヘッダーをタップ→モーダルで日付変更・列削除 |
 | 出席入力 | セルをタップで ○ ⇔ 空 のトグル |
+| 合計行 | 画面下部に bottom sticky で「合計 N/26」を日付列ごとに表示 |
 | 自動保存 | `localStorage`（キー: `kalidia_roster_v1`）に即時保存 |
 | JSONエクスポート | 全データを .json ファイルでダウンロード |
 | JSONインポート | .json ファイルを読み込んで復元 |
 | 全リセット | 日付列と出席データを全削除（メンバーは残る） |
-| スマホ最適化 | 氏名列 sticky-left、日付ヘッダー sticky-top、44px セル |
+| スマホ最適化 | 氏名列 sticky-left、日付ヘッダー sticky-top、合計行 sticky-bottom、44px セル |
 
 ---
 
@@ -101,13 +107,20 @@ memberId 形式は `M_<名前>`（男性）/ `F_<名前>`（女性）。
 | 関数 | 役割 |
 |---|---|
 | `buildMembers()` | RAW 定数からメンバー配列を生成 |
-| `load()` / `save()` | localStorage 読み書き |
-| `render()` | テーブル全体を再描画 |
+| `sortDates()` | `state.dates` を label(YYYY-MM-DD) の昇順で並び替え |
+| `load()` / `save()` | localStorage 読み書き（load 時に sortDates） |
+| `render()` | テーブル全体（thead / tbody / tfoot）を再描画 |
 | `toggleCell(mid, did)` | 出席○のトグル |
-| `addDate()` | 今日の日付で列を追加 |
-| `openDateModal(did)` / `saveDate()` / `deleteDate()` | 日付列の編集・削除 |
-| `exportJson()` / `importJson(file)` | JSON入出力 |
-| `resetAttendance()` | 出席データ全消去 |
+| `addDate()` | 今日の日付で列を追加、sort 後にその列へ自動スクロール |
+| `openDateModal(did)` / `saveDate()` / `deleteDate()` | 日付列の編集・削除（saveDate は sort 付き） |
+| `exportJson()` / `importJson(file)` | JSON入出力（import 時に sort） |
+| `resetAttendance()` | 出席データと日付列を全消去 |
+
+### tfoot（合計行）の描画ロジック
+
+`render()` 内で attendance を走査して各 `did` ごとの ○ 数をカウントし、`<tfoot>` を生成。
+`<td>` に `position: sticky; bottom: 0` を付けて画面下部に固定。
+sticky-left と sticky-bottom が交差する左下セルは z-index を 16 にして最前面に。
 
 ---
 
