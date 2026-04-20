@@ -346,6 +346,11 @@
             return `<span>${d.getMonth() + 1}/${d.getDate()}</span><small class="${cls ? 'dow-' + cls : ''}">(${dow})</small>`;
         }
 
+        function sortDates() {
+            // 古い順（左）→ 新しい順（右）に並び替え。label は "YYYY-MM-DD" なので文字列比較でOK
+            state.dates.sort((a, b) => a.label.localeCompare(b.label));
+        }
+
         function save() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }
@@ -362,6 +367,7 @@
             } catch (e) {
                 console.warn('load failed', e);
             }
+            sortDates();
         }
 
         // --- 描画 ---
@@ -423,12 +429,18 @@
         }
 
         function addDate() {
-            state.dates.push({ id: 'd_' + Date.now(), label: todayIso() });
+            const newId = 'd_' + Date.now();
+            state.dates.push({ id: newId, label: todayIso() });
+            sortDates();
             save();
             render();
-            // 右端にスクロール
+            // 追加した列の位置までスクロール（今日の日付が末尾になるとは限らないため）
             const wrap = document.getElementById('table-wrap');
-            setTimeout(() => { wrap.scrollLeft = wrap.scrollWidth; }, 50);
+            setTimeout(() => {
+                const btn = wrap.querySelector(`.date-btn[data-did="${newId}"]`);
+                if (btn) btn.closest('th').scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                else wrap.scrollLeft = wrap.scrollWidth;
+            }, 50);
         }
 
         // 日付モーダル
@@ -448,7 +460,7 @@
             const val = document.getElementById('date-input').value;
             if (!val) { closeDateModal(); return; }
             const d = state.dates.find(x => x.id === editingDid);
-            if (d) { d.label = val; save(); render(); }
+            if (d) { d.label = val; sortDates(); save(); render(); }
             closeDateModal();
         }
         function deleteDate() {
@@ -492,6 +504,7 @@
                     if (!obj || obj.version !== 1) throw new Error('フォーマットが違います');
                     state.dates = Array.isArray(obj.dates) ? obj.dates : [];
                     state.attendance = (obj.attendance && typeof obj.attendance === 'object') ? obj.attendance : {};
+                    sortDates();
                     save();
                     render();
                     closeMenu();
