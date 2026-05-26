@@ -4,8 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="KALIDIA名簿">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#2563eb">
     <title>KALIDIA名簿</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -336,6 +343,22 @@
         </div>
     </div>
 
+    <!-- バックアップ警告モーダル -->
+    <div class="modal-backdrop" id="backup-modal">
+        <div class="modal">
+            <h2>📦 バックアップのおすすめ</h2>
+            <p id="backup-msg" style="font-size:13px; color:#475569; line-height:1.7; margin:0 0 12px;"></p>
+            <p style="font-size:12px; color:#64748b; line-height:1.6; margin:0;">
+                スマホのブラウザは長く使わないとデータが自動で消えることがあります。<br>
+                定期的にJSONで書き出しておくと安心です。
+            </p>
+            <div class="modal-actions">
+                <button class="btn" id="backup-later">あとで</button>
+                <button class="btn btn-primary" id="backup-now">今すぐJSON保存</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- メンバーデータ（update_members.py で同期） ---
         const RAW = {
@@ -348,12 +371,16 @@
 
         const STORAGE_KEY = 'kalidia_roster_v1';
         const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+        const BACKUP_WARN_DAYS = 7;     // 最終バックアップから何日経過で警告するか
+        const BACKUP_SNOOZE_DAYS = 3;   // 「あとで」を押したあと何日間警告を抑止するか
 
         let state = {
             version: 1,
             members: [],
             dates: [],
-            attendance: {}
+            attendance: {},
+            lastBackupAt: null,      // JSONエクスポート日時（ISO文字列）
+            backupSnoozeUntil: null  // この日時までは警告しない（ISO文字列）
         };
 
         // --- Helpers ---
@@ -398,6 +425,8 @@
                     const saved = JSON.parse(raw);
                     state.dates = Array.isArray(saved.dates) ? saved.dates : [];
                     state.attendance = (saved.attendance && typeof saved.attendance === 'object') ? saved.attendance : {};
+                    state.lastBackupAt = typeof saved.lastBackupAt === 'string' ? saved.lastBackupAt : null;
+                    state.backupSnoozeUntil = typeof saved.backupSnoozeUntil === 'string' ? saved.backupSnoozeUntil : null;
                 }
             } catch (e) {
                 console.warn('load failed', e);
@@ -543,6 +572,9 @@
         function closeMenu() { document.getElementById('menu-modal').classList.remove('show'); }
 
         function exportJson() {
+            state.lastBackupAt = new Date().toISOString();
+            state.backupSnoozeUntil = null;
+            save();
             const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -553,6 +585,7 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             closeMenu();
+            closeBackupModal();
         }
 
         function triggerImport() {
@@ -588,6 +621,52 @@
             closeMenu();
         }
 
+        // --- バックアップ警告（C案） ---
+        function closeBackupModal() {
+            document.getElementById('backup-modal').classList.remove('show');
+        }
+
+        function snoozeBackup() {
+            const until = new Date();
+            until.setDate(until.getDate() + BACKUP_SNOOZE_DAYS);
+            state.backupSnoozeUntil = until.toISOString();
+            save();
+            closeBackupModal();
+        }
+
+        function checkBackupWarning() {
+            // データが入っていなければ警告しない
+            const hasData = Object.keys(state.attendance).length > 0 || state.dates.length > 0;
+            if (!hasData) return;
+
+            const now = Date.now();
+
+            // スヌーズ中なら出さない
+            if (state.backupSnoozeUntil) {
+                const snoozeMs = new Date(state.backupSnoozeUntil).getTime();
+                if (!isNaN(snoozeMs) && snoozeMs > now) return;
+            }
+
+            // 最終バックアップ日時から経過日数を計算
+            let elapsedDays;
+            if (state.lastBackupAt) {
+                const lastMs = new Date(state.lastBackupAt).getTime();
+                if (isNaN(lastMs)) return;
+                elapsedDays = Math.floor((now - lastMs) / 86400000);
+            } else {
+                // 一度もバックアップしていない＆データあり → 警告対象
+                elapsedDays = null;
+            }
+
+            if (elapsedDays !== null && elapsedDays < BACKUP_WARN_DAYS) return;
+
+            const msg = elapsedDays === null
+                ? 'まだ一度もバックアップしていません。'
+                : `最後のバックアップから ${elapsedDays} 日経過しています。`;
+            document.getElementById('backup-msg').textContent = msg;
+            document.getElementById('backup-modal').classList.add('show');
+        }
+
         // --- イベント配線 ---
         document.getElementById('btn-add-date').addEventListener('click', addDate);
         document.getElementById('btn-menu').addEventListener('click', openMenu);
@@ -603,6 +682,9 @@
         document.getElementById('date-cancel').addEventListener('click', closeDateModal);
         document.getElementById('date-save').addEventListener('click', saveDate);
         document.getElementById('date-delete').addEventListener('click', deleteDate);
+
+        document.getElementById('backup-later').addEventListener('click', snoozeBackup);
+        document.getElementById('backup-now').addEventListener('click', exportJson);
 
         // モーダル背景タップで閉じる
         document.querySelectorAll('.modal-backdrop').forEach(bd => {
@@ -627,6 +709,15 @@
         // 起動
         load();
         render();
+        checkBackupWarning();
+
+        // Service Worker 登録（PWA化）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .catch(err => console.warn('SW register failed', err));
+            });
+        }
     </script>
 </body>
 </html>
